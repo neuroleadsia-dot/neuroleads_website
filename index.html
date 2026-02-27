@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Security Headers (meta equiv for static hosting) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https:;
+      connect-src 'self';
+      frame-ancestors 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
+    
+    <!-- SEO Meta Tags -->
+    <title>NeuroLeads | IA pour Prospection B2B - Systèmes Autonomes</title>
+    <meta name="description" content="Systèmes autonomes de génération d'opportunités B2B pilotés par l'IA. Pipelines prévisibles, coûts réduits, croissance accélérée. Réservez votre diagnostic gratuit." />
+    <meta name="keywords" content="prospection B2B, IA, automatisation, voice agent, leads, CRM, France" />
+    <meta name="author" content="NeuroLeads" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="NeuroLeads | IA pour Prospection B2B" />
+    <meta property="og:description" content="Systèmes autonomes de génération d'opportunités B2B pilotés par l'IA." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://neuroleads.fr" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:locale" content="fr_FR" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NeuroLeads | IA pour Prospection B2B" />
+    <meta name="twitter:description" content="Systèmes autonomes de génération d'opportunités B2B pilotés par l'IA." />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0A0A0F" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
