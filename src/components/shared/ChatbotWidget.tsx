@@ -1,50 +1,151 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const SYSTEM_PROMPT = `Tu es l'assistant IA de NeuroLeads, une agence spécialisée dans l'intégration de solutions d'intelligence artificielle pour les entreprises. Tu t'appelles "Neuro", l'assistant virtuel de NeuroLeads.
+
+## Ta mission
+- Répondre aux questions des visiteurs sur les services de NeuroLeads
+- Qualifier les prospects en comprenant leurs besoins
+- Guider les visiteurs vers une prise de rendez-vous ou un contact
+- Être professionnel, chaleureux et concis
+
+## Les services de NeuroLeads
+
+### 1. AI Revenue Engine
+- Système autonome de prospection B2B piloté par l'IA
+- Génération de leads qualifiés automatisée
+- Scoring et priorisation intelligente
+
+### 2. Voice Agents IA
+- Agents vocaux IA pour gestion d'appels entrants/sortants 24/7
+- Voix naturelle, multilingue
+- Qualification et prise de rendez-vous automatisée
+
+### 3. Automatisation sur mesure
+- Intégration CRM, ERP, HRIS
+- Workflows visuels intelligents
+- Plus de 200 intégrations disponibles
+
+### 4. Sites IA & Chatbots
+- Chatbots intelligents pour sites web
+- NLP avancé, qualification en temps réel
+- Solutions sur mesure adaptées au contexte métier
+
+## Informations de contact
+- Email : neuroleads.ia@gmail.com
+- Téléphone : 07 69 57 67 60 / 07 81 89 39 35
+- Temps de réponse garanti : 24h
+
+## Règles de conversation
+1. Réponds TOUJOURS en français, sauf si le visiteur écrit dans une autre langue
+2. Sois concis (2-4 phrases max par réponse)
+3. Quand le visiteur montre de l'intérêt, propose de réserver un diagnostic gratuit via le formulaire de contact sur le site
+4. Si on te pose une question hors sujet, redirige poliment vers les services
+5. Ne donne jamais de prix exact — dis que c'est sur mesure et propose un diagnostic gratuit
+6. Utilise des emojis de façon modérée et professionnelle
+7. Ne t'invente jamais d'informations. Si tu ne sais pas, propose de mettre en contact avec l'équipe`;
 
 const quickReplies = [
-  'En savoir plus sur vos solutions',
-  'Réserver un diagnostic',
-  'Combien ça coûte ?',
-  'Parler à un conseiller',
+  { label: 'En savoir plus sur vos solutions', message: 'Quels services proposez-vous ?' },
+  { label: 'Réserver un diagnostic', message: 'Je souhaite réserver un diagnostic gratuit.' },
+  { label: 'Combien ça coûte ?', message: 'Quels sont vos tarifs ?' },
+  { label: 'Parler à un conseiller', message: 'Je souhaite parler à un conseiller.' },
 ];
 
 export function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{ text: string; isUser: boolean }[]>([
-    { text: 'Bonjour ! Comment puis-je vous aider aujourd\'hui ?', isUser: false },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showQuickReplies, setShowQuickReplies] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleQuickReply = (reply: string) => {
-    setMessages([...messages, { text: reply, isUser: true }]);
-    
-    setTimeout(() => {
-      let response = '';
-      switch (reply) {
-        case 'En savoir plus sur vos solutions':
-          response = 'Nous proposons 4 solutions : AI Revenue Engine, Voice Agents IA, Automatisation sur mesure, et Sites IA & Chatbots. Quelle vous intéresse ?';
-          break;
-        case 'Réserver un diagnostic':
-          response = 'Parfait ! Faites défiler jusqu\'à la section "Prêt à transformer votre prospection" ou cliquez sur "Réserver un diagnostic" dans le menu.';
-          break;
-        case 'Combien ça coûte ?':
-          response = 'Nos forfaits sont adaptés à votre taille et vos besoins. Le diagnostic initial est gratuit. Souhaitez-vous que nous vous contactions pour un devis ?';
-          break;
-        case 'Parler à un conseiller':
-          response = 'Je peux transmettre votre demande. Pouvez-vous me laisser votre nom et email ? Un conseiller vous contactera sous 24h.';
-          break;
-        default:
-          response = 'Je comprends. Un conseiller va prendre contact avec vous rapidement. Pouvez-vous me laisser votre email ?';
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const sendMessage = async (text?: string) => {
+    const messageText = text || inputValue.trim();
+    if (!messageText || isLoading) return;
+
+    const userMessage: Message = { role: 'user', content: messageText };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue('');
+    setIsLoading(true);
+    setShowQuickReplies(false);
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system: SYSTEM_PROMPT,
+          messages: [...messages, userMessage].map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('rate_limit');
+        }
+        throw new Error(`API error: ${response.status}`);
       }
-      setMessages((prev) => [...prev, { text: response, isUser: false }]);
-    }, 800);
+
+      const data = await response.json();
+      const responseText = data?.content?.[0]?.text;
+
+      if (!responseText) {
+        throw new Error('invalid_response');
+      }
+
+      setMessages((prev) => [...prev, { role: 'assistant', content: responseText }]);
+    } catch (error) {
+      let errorMessage = "Oups, un petit souci technique ! Vous pouvez nous contacter directement au 07 69 57 67 60 ou par email à neuroleads.ia@gmail.com.";
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = "La réponse prend trop de temps. Veuillez réessayer ou nous contacter par email.";
+        } else if (error.message === 'rate_limit') {
+          errorMessage = "Trop de messages envoyés. Veuillez patienter quelques instants.";
+        }
+      }
+
+      setMessages((prev) => [...prev, { role: 'assistant', content: errorMessage }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSend = () => {
-    if (inputValue.trim()) {
-      handleQuickReply(inputValue);
-      setInputValue('');
+    sendMessage();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -67,7 +168,8 @@ export function ChatbotWidget() {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed bottom-24 right-6 z-50 w-96 max-w-[calc(100vw-48px)] bg-[#12121A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+            className="fixed bottom-24 right-6 z-50 w-96 max-w-[calc(100vw-48px)] bg-[#12121A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            style={{ height: 'min(520px, calc(100vh - 120px))' }}
           >
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-[#0066FF] to-[#00D4AA]">
@@ -76,63 +178,94 @@ export function ChatbotWidget() {
                   <span className="text-xl">🤖</span>
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold">Assistant NeuroLeads</h3>
-                  <p className="text-white/70 text-sm">En ligne</p>
+                  <h3 className="text-white font-semibold">Neuro - Assistant IA</h3>
+                  <p className="text-white/70 text-sm flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-green-300 rounded-full inline-block animate-pulse"></span>
+                    En ligne
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Messages */}
-            <div className="h-72 overflow-y-auto p-4 space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-3 rounded-2xl text-sm ${
-                      message.isUser
-                        ? 'bg-[#0066FF] text-white rounded-br-md'
-                        : 'bg-[#1A1A25] text-[#B8B8C8] rounded-bl-md'
-                    }`}
-                  >
-                    {message.text}
-                  </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Welcome message */}
+              <div className="flex justify-start">
+                <div className="max-w-[80%] p-3 rounded-2xl text-sm bg-[#1A1A25] text-[#B8B8C8] rounded-bl-md">
+                  Bonjour ! Je suis <strong>Neuro</strong>, l'assistant IA de NeuroLeads. Comment puis-je vous aider aujourd'hui ?
                 </div>
-              ))}
+              </div>
 
               {/* Quick Replies */}
-              {messages[messages.length - 1]?.isUser === false && (
+              {showQuickReplies && messages.length === 0 && (
                 <div className="flex flex-wrap gap-2 pt-2">
                   {quickReplies.map((reply) => (
                     <button
-                      key={reply}
-                      onClick={() => handleQuickReply(reply)}
+                      key={reply.label}
+                      onClick={() => sendMessage(reply.message)}
                       className="px-3 py-2 text-xs bg-[#1A1A25] hover:bg-[#0066FF]/20 text-[#B8B8C8] hover:text-white rounded-full border border-white/10 hover:border-[#0066FF]/30 transition-colors"
                     >
-                      {reply}
+                      {reply.label}
                     </button>
                   ))}
                 </div>
               )}
+
+              {/* Conversation */}
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] p-3 rounded-2xl text-sm whitespace-pre-wrap ${
+                      message.role === 'user'
+                        ? 'bg-[#0066FF] text-white rounded-br-md'
+                        : 'bg-[#1A1A25] text-[#B8B8C8] rounded-bl-md'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                </div>
+              ))}
+
+              {/* Loading indicator */}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="p-3 rounded-2xl bg-[#1A1A25] rounded-bl-md flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#B8B8C8]/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#B8B8C8]/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#B8B8C8]/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Input */}
             <div className="p-4 border-t border-white/10">
               <div className="flex gap-2">
                 <input
+                  ref={inputRef}
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                  onKeyDown={handleKeyDown}
                   placeholder="Votre message..."
                   className="flex-1 px-4 py-2 bg-[#1A1A25] border border-white/10 rounded-full text-white placeholder-[#6B6B7B] focus:outline-none focus:border-[#0066FF]/50 text-sm"
+                  disabled={isLoading}
                 />
                 <button
                   onClick={handleSend}
-                  className="w-10 h-10 rounded-full bg-[#0066FF] text-white flex items-center justify-center hover:bg-[#0052CC] transition-colors"
+                  disabled={!inputValue.trim() || isLoading}
+                  className="w-10 h-10 rounded-full bg-[#0066FF] text-white flex items-center justify-center hover:bg-[#0052CC] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-4 h-4" />
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>

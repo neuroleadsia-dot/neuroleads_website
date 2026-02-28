@@ -4,9 +4,7 @@ import { defineConfig } from "vite"
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  // GitHub Pages: use repo name as base path
-  // Remplacer '/neuroleads/' par le nom de votre repo
-  base: mode === 'production' ? '/neuroleads/' : '/',
+  base: '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -38,6 +36,13 @@ export default defineConfig(({ mode }) => ({
       'X-Content-Type-Options': 'nosniff',
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
+    },
+    // Proxy API calls to Express backend in development
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 }))

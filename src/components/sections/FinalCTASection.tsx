@@ -1,13 +1,29 @@
 import { motion } from 'framer-motion';
 import { useInView } from '@/hooks/useInView';
-import { ArrowRight, Check, Calendar, Mail, User, Building, MessageSquare, Loader2 } from 'lucide-react';
+import { ArrowRight, Check, Calendar, Mail, User, Building, MessageSquare, Loader2, MessageCircle, Phone } from 'lucide-react';
 import { useState, useCallback } from 'react';
+import { BookingModal } from '@/components/shared/BookingModal';
 
 const benefits = [
   'Sans engagement',
   'Diagnostic personnalisé',
   'Feuille de route concrète',
   'Résultats en 48h',
+];
+
+const serviceTypes = [
+  'AI Revenue Engine',
+  'Voice Agents IA',
+  'Automatisation sur mesure',
+  'Sites IA & Chatbots',
+  'Autre',
+];
+
+const budgetRanges = [
+  '< 5 000 €',
+  '5 000 € - 10 000 €',
+  '10 000 € - 25 000 €',
+  '> 25 000 €',
 ];
 
 // Email validation regex
@@ -24,12 +40,15 @@ const sanitizeInput = (input: string): string => {
 
 export function FinalCTASection() {
   const [ref, isInView] = useInView({ threshold: 0.3 });
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     company: '',
+    service: '',
+    budget: '',
     message: '',
-    honeypot: '', // Honeypot field for bot detection
+    honeypot: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,6 +68,10 @@ export function FinalCTASection() {
       newErrors.email = 'L\'email est requis';
     } else if (!EMAIL_REGEX.test(formData.email)) {
       newErrors.email = 'Veuillez entrer un email valide';
+    }
+
+    if (!formData.service) {
+      newErrors.service = 'Le type de service est requis';
     }
 
     if (formData.message.length > 1000) {
@@ -79,33 +102,58 @@ export function FinalCTASection() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const sanitizedData = {
+        name: sanitizeInput(formData.name),
+        email: sanitizeInput(formData.email),
+        company: sanitizeInput(formData.company),
+        service: formData.service,
+        budget: formData.budget,
+        message: sanitizeInput(formData.message),
+      };
 
-    // Sanitize data before sending
-    const sanitizedData = {
-      name: sanitizeInput(formData.name),
-      email: sanitizeInput(formData.email),
-      company: sanitizeInput(formData.company),
-      message: sanitizeInput(formData.message),
-    };
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
 
-    console.log('Form submitted:', sanitizedData);
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanitizedData),
+        signal: controller.signal,
+      });
 
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    setSubmitCount(prev => prev + 1);
+      clearTimeout(timeout);
 
-    // Reset after 5 seconds
-    setTimeout(() => {
-      setIsSubmitted(false);
-      setFormData({ name: '', email: '', company: '', message: '', honeypot: '' });
-    }, 5000);
+      if (response.status === 429) {
+        throw new Error('Trop de soumissions. Veuillez patienter quelques minutes.');
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Erreur lors de l\'envoi');
+      }
+
+      setIsSubmitted(true);
+      setSubmitCount(prev => prev + 1);
+
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setFormData({ name: '', email: '', company: '', service: '', budget: '', message: '', honeypot: '' });
+      }, 8000);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        setErrors({ submit: 'La requête a expiré. Veuillez réessayer.' });
+      } else {
+        const message = error instanceof Error ? error.message : 'Une erreur est survenue. Contactez-nous directement par email ou WhatsApp.';
+        setErrors({ submit: message });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user types
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -137,7 +185,7 @@ export function FinalCTASection() {
             </h2>
 
             <p className="text-lg text-[#B8B8C8] mb-8">
-              Réservez un diagnostic gratuit de 30 minutes. Nous analysons votre 
+              Réservez un diagnostic gratuit de 30 minutes. Nous analysons votre
               situation actuelle et vous présentons une feuille de route concrète.
             </p>
 
@@ -150,10 +198,36 @@ export function FinalCTASection() {
               ))}
             </div>
 
-            <div className="p-6 bg-[#12121A] rounded-xl border border-white/5">
+            {/* Booking CTA */}
+            <button
+              onClick={() => setIsBookingOpen(true)}
+              className="w-full p-4 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] bg-gradient-to-r from-[#0066FF] to-[#00D4AA] text-white font-semibold shadow-lg shadow-[#0066FF]/30 mb-4"
+            >
+              <Calendar className="w-6 h-6" />
+              Réserver un créneau
+            </button>
+
+            {/* WhatsApp CTA */}
+            <a
+              href="https://wa.me/33781893935"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full p-4 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] bg-[#25D366]/15 border border-[#25D366]/30"
+            >
+              <MessageCircle className="w-6 h-6 text-[#25D366]" />
+              <span className="text-white font-medium">Discuter sur WhatsApp</span>
+            </a>
+
+            <div className="p-6 bg-[#12121A] rounded-xl border border-white/5 mt-6">
               <p className="text-sm text-[#6B6B7B] mb-2">Contact direct</p>
-              <p className="text-white font-semibold">📞 07 69 57 67 60 / 07 81 89 39 35</p>
-              <p className="text-[#B8B8C8]">✉️ neuroleads.ia@gmail.com</p>
+              <div className="flex items-center gap-2 text-white font-semibold mb-1">
+                <Phone className="w-4 h-4 text-[#00D4AA]" />
+                07 69 57 67 60 / 07 81 89 39 35
+              </div>
+              <div className="flex items-center gap-2 text-[#B8B8C8]">
+                <Mail className="w-4 h-4 text-[#00D4AA]" />
+                neuroleads.ia@gmail.com
+              </div>
             </div>
           </motion.div>
 
@@ -169,14 +243,14 @@ export function FinalCTASection() {
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#00D4AA]/20 flex items-center justify-center">
                     <Check className="w-8 h-8 text-[#00D4AA]" />
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-2">Merci !</h3>
-                  <p className="text-[#B8B8C8]">Nous vous contacterons sous 24h.</p>
+                  <h3 className="text-2xl font-bold text-white mb-2">Message envoyé !</h3>
+                  <p className="text-[#B8B8C8]">Nous vous recontacterons dans les 24 heures.</p>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                   <h3 className="text-xl font-semibold text-white mb-6">Réserver votre diagnostic</h3>
-                  
-                  {/* Honeypot field - hidden from humans */}
+
+                  {/* Honeypot field */}
                   <div className="hidden" aria-hidden="true">
                     <input
                       type="text"
@@ -188,64 +262,110 @@ export function FinalCTASection() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-[#B8B8C8] mb-2">Nom complet *</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6B6B7B]" />
-                      <input
-                        type="text"
+                  {/* Name & Email row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-[#B8B8C8] mb-2">Nom *</label>
+                      <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6B6B7B]" />
+                        <input
+                          type="text"
+                          required
+                          maxLength={100}
+                          value={formData.name}
+                          onChange={(e) => handleChange('name', e.target.value)}
+                          className={`w-full pl-12 pr-4 py-3 bg-[#0A0A0F] border rounded-xl text-white placeholder-[#4A4A5A] focus:outline-none focus:border-[#0066FF]/50 transition-colors ${
+                            errors.name ? 'border-red-500' : 'border-white/10'
+                          }`}
+                          placeholder="Votre nom"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-[#B8B8C8] mb-2">Email *</label>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6B6B7B]" />
+                        <input
+                          type="email"
+                          required
+                          maxLength={100}
+                          value={formData.email}
+                          onChange={(e) => handleChange('email', e.target.value)}
+                          className={`w-full pl-12 pr-4 py-3 bg-[#0A0A0F] border rounded-xl text-white placeholder-[#4A4A5A] focus:outline-none focus:border-[#0066FF]/50 transition-colors ${
+                            errors.email ? 'border-red-500' : 'border-white/10'
+                          }`}
+                          placeholder="votre@email.com"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                      {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+                    </div>
+                  </div>
+
+                  {/* Company & Service row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-[#B8B8C8] mb-2">Entreprise</label>
+                      <div className="relative">
+                        <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6B6B7B]" />
+                        <input
+                          type="text"
+                          maxLength={100}
+                          value={formData.company}
+                          onChange={(e) => handleChange('company', e.target.value)}
+                          className="w-full pl-12 pr-4 py-3 bg-[#0A0A0F] border border-white/10 rounded-xl text-white placeholder-[#4A4A5A] focus:outline-none focus:border-[#0066FF]/50 transition-colors"
+                          placeholder="Votre entreprise"
+                          disabled={isSubmitting}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-[#B8B8C8] mb-2">Type de service *</label>
+                      <select
                         required
-                        maxLength={100}
-                        value={formData.name}
-                        onChange={(e) => handleChange('name', e.target.value)}
-                        className={`w-full pl-12 pr-4 py-3 bg-[#0A0A0F] border rounded-xl text-white placeholder-[#4A4A5A] focus:outline-none focus:border-[#0066FF]/50 transition-colors ${
-                          errors.name ? 'border-red-500' : 'border-white/10'
+                        value={formData.service}
+                        onChange={(e) => handleChange('service', e.target.value)}
+                        className={`w-full px-4 py-3 bg-[#0A0A0F] border rounded-xl text-white focus:outline-none focus:border-[#0066FF]/50 transition-colors appearance-none ${
+                          errors.service ? 'border-red-500' : 'border-white/10'
                         }`}
-                        placeholder="Jean Dupont"
                         disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-[#B8B8C8] mb-2">Email professionnel *</label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6B6B7B]" />
-                      <input
-                        type="email"
-                        required
-                        maxLength={100}
-                        value={formData.email}
-                        onChange={(e) => handleChange('email', e.target.value)}
-                        className={`w-full pl-12 pr-4 py-3 bg-[#0A0A0F] border rounded-xl text-white placeholder-[#4A4A5A] focus:outline-none focus:border-[#0066FF]/50 transition-colors ${
-                          errors.email ? 'border-red-500' : 'border-white/10'
-                        }`}
-                        placeholder="jean@entreprise.fr"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-[#B8B8C8] mb-2">Entreprise</label>
-                    <div className="relative">
-                      <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#6B6B7B]" />
-                      <input
-                        type="text"
-                        maxLength={100}
-                        value={formData.company}
-                        onChange={(e) => handleChange('company', e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-[#0A0A0F] border border-white/10 rounded-xl text-white placeholder-[#4A4A5A] focus:outline-none focus:border-[#0066FF]/50 transition-colors"
-                        placeholder="Mon Entreprise"
-                        disabled={isSubmitting}
-                      />
+                      >
+                        <option value="" className="bg-[#0A0A0F]">Sélectionnez</option>
+                        {serviceTypes.map((type) => (
+                          <option key={type} value={type} className="bg-[#0A0A0F]">
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.service && <p className="mt-1 text-sm text-red-500">{errors.service}</p>}
                     </div>
                   </div>
 
+                  {/* Budget */}
                   <div>
-                    <label className="block text-sm text-[#B8B8C8] mb-2">Message (optionnel)</label>
+                    <label className="block text-sm text-[#B8B8C8] mb-2">Votre budget</label>
+                    <select
+                      value={formData.budget}
+                      onChange={(e) => handleChange('budget', e.target.value)}
+                      className="w-full px-4 py-3 bg-[#0A0A0F] border border-white/10 rounded-xl text-white focus:outline-none focus:border-[#0066FF]/50 transition-colors appearance-none"
+                      disabled={isSubmitting}
+                    >
+                      <option value="" className="bg-[#0A0A0F]">Sélectionnez</option>
+                      {budgetRanges.map((range) => (
+                        <option key={range} value={range} className="bg-[#0A0A0F]">
+                          {range}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Message */}
+                  <div>
+                    <label className="block text-sm text-[#B8B8C8] mb-2">Détails du projet</label>
                     <div className="relative">
                       <MessageSquare className="absolute left-4 top-4 w-5 h-5 text-[#6B6B7B]" />
                       <textarea
@@ -254,11 +374,10 @@ export function FinalCTASection() {
                         value={formData.message}
                         onChange={(e) => handleChange('message', e.target.value)}
                         className="w-full pl-12 pr-4 py-3 bg-[#0A0A0F] border border-white/10 rounded-xl text-white placeholder-[#4A4A5A] focus:outline-none focus:border-[#0066FF]/50 resize-none transition-colors"
-                        placeholder="Dites-nous en plus sur vos besoins..."
+                        placeholder="Décrivez votre projet..."
                         disabled={isSubmitting}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-[#6B6B7B]">{formData.message.length}/1000</p>
                   </div>
 
                   {errors.submit && (
@@ -279,21 +398,19 @@ export function FinalCTASection() {
                       </>
                     ) : (
                       <>
-                        Réserver mon diagnostic gratuit
+                        Envoyer
                         <ArrowRight className="w-5 h-5" />
                       </>
                     )}
                   </button>
-
-                  <p className="text-xs text-center text-[#6B6B7B]">
-                    Places limitées : <span className="text-[#00D4AA]">5 diagnostics par semaine</span>
-                  </p>
                 </form>
               )}
             </div>
           </motion.div>
         </div>
       </div>
+
+      <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
     </section>
   );
 }
