@@ -96,6 +96,36 @@ export function ChatbotWidget() {
     };
   }, []);
 
+  // On mobile, lock the body scroll when chat is open.
+  // iOS Safari scrolls the visual viewport when an input is focused, which
+  // makes the header/messages slide off the top of the screen. Locking the
+  // body (position:fixed) prevents iOS from doing that scroll entirely.
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+    } else {
+      const top = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, -parseInt(top || '0'));
+    }
+    return () => {
+      const top = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      if (top) window.scrollTo(0, -parseInt(top));
+    };
+  }, [isOpen, isMobile]);
+
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
