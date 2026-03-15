@@ -77,6 +77,24 @@ export function ChatbotWidget() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
+  // Write visual viewport height into a CSS variable so the chat window
+  // instantly resizes when the iOS keyboard opens/closes — no React re-render lag.
+  useEffect(() => {
+    const vp = window.visualViewport;
+    const update = () => {
+      const h = vp ? vp.height : window.innerHeight;
+      document.documentElement.style.setProperty('--vvh', `${h}px`);
+    };
+    update();
+    vp?.addEventListener('resize', update);
+    vp?.addEventListener('scroll', update);
+    return () => {
+      vp?.removeEventListener('resize', update);
+      vp?.removeEventListener('scroll', update);
+      document.documentElement.style.removeProperty('--vvh');
+    };
+  }, []);
+
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
@@ -179,14 +197,15 @@ export function ChatbotWidget() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             className="fixed z-50 bg-[#12121A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col
-                       left-3 right-3 top-4 bottom-[88px]
+                       left-3 right-3 top-4
                        sm:left-auto sm:right-6 sm:top-auto sm:bottom-24 sm:w-96 sm:max-w-[calc(100vw-48px)]"
             style={{
-              // On mobile: use dvh (dynamic viewport height) so the window automatically
-              // shrinks when the iOS virtual keyboard opens, keeping the input visible.
-              // On desktop: fixed 520px capped to viewport height.
+              // Mobile: anchor at top-4 (16px) and set height from --vvh CSS variable
+              // which tracks visualViewport.height. When the iOS keyboard opens,
+              // visualViewport.height shrinks instantly → the window shrinks above the keyboard.
+              // Desktop: restore original fixed-height bottom-right behaviour.
               height: isMobile
-                ? 'calc(100dvh - 104px)'
+                ? 'calc(var(--vvh, 100svh) - 104px)'
                 : 'min(520px, calc(100vh - 120px))',
             }}
           >
