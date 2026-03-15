@@ -292,6 +292,7 @@ export function ChatbotWidget() {
                   onKeyDown={handleKeyDown}
                   placeholder="Votre message..."
                   className="flex-1 px-4 py-2 bg-[#1A1A25] border border-white/10 rounded-full text-white placeholder-[#6B6B7B] focus:outline-none focus:border-[#0066FF]/50 text-sm"
+                  style={{ fontSize: '16px' }}
                   disabled={isLoading}
                 />
                 <button
