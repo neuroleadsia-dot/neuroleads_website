@@ -180,31 +180,34 @@ export function ChatbotWidget() {
 
   return (
     <>
-      {/* Toggle Button */}
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-[#0066FF] to-[#00D4AA] text-white shadow-lg shadow-[#0066FF]/30 flex items-center justify-center"
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
-      </motion.button>
+      {/* Toggle Button — hidden on mobile when chat is open (full-screen overlay covers it) */}
+      {(!isMobile || !isOpen) && (
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsOpen(!isOpen)}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-[#0066FF] to-[#00D4AA] text-white shadow-lg shadow-[#0066FF]/30 flex items-center justify-center"
+        >
+          {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+        </motion.button>
+      )}
 
       {/* Chat Window */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 16 }}
-            className="fixed z-50 bg-[#12121A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col
-                       left-3 right-3 top-4
-                       sm:left-auto sm:right-6 sm:top-auto sm:bottom-24 sm:w-96 sm:max-w-[calc(100vw-48px)]"
+            initial={isMobile ? { opacity: 1, y: '100%' } : { opacity: 0, scale: 0.95, y: 16 }}
+            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+            exit={isMobile ? { opacity: 1, y: '100%' } : { opacity: 0, scale: 0.95, y: 16 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed z-50 bg-[#12121A] flex flex-col overflow-hidden
+                       inset-0
+                       sm:inset-auto sm:border sm:border-white/10 sm:rounded-2xl sm:shadow-2xl
+                       sm:bottom-24 sm:right-6 sm:w-96 sm:max-w-[calc(100vw-48px)]"
             style={isMobile ? {
-              // No keyboard: bottom stays 88px above viewport bottom (above toggle button).
-              // Keyboard open: --kb-h = keyboard height, bottom slides above keyboard instantly.
-              // Height is auto-calculated from top (16px) + bottom, so no explicit height needed.
-              bottom: 'max(88px, calc(var(--kb-h, 0px) + 8px))',
+              // padding-bottom tracks keyboard height via CSS variable — content shifts up
+              // inside the window naturally, no fighting iOS positioning.
+              paddingBottom: 'var(--kb-h, 0px)',
             } : {
               height: 'min(520px, calc(100vh - 120px))',
             }}
@@ -215,13 +218,20 @@ export function ChatbotWidget() {
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                   <span className="text-xl">🤖</span>
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="text-white font-semibold">Neuro - Assistant IA</h3>
                   <p className="text-white/70 text-sm flex items-center gap-1">
                     <span className="w-1.5 h-1.5 bg-green-300 rounded-full inline-block animate-pulse"></span>
                     En ligne
                   </p>
                 </div>
+                {/* Close button — only shown on mobile (toggle button is hidden behind overlay) */}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="sm:hidden p-1 text-white/70 hover:text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
               </div>
             </div>
 
