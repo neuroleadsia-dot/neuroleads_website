@@ -165,11 +165,12 @@ export function ChatbotWidget() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed bottom-24 right-6 z-50 w-96 max-w-[calc(100vw-48px)] bg-[#12121A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-            style={{ height: 'min(520px, calc(100vh - 120px))' }}
+            exit={{ opacity: 0, scale: 0.95, y: 16 }}
+            className="fixed z-50 bg-[#12121A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col
+                       left-3 right-3 top-16 bottom-[88px]
+                       sm:left-auto sm:right-6 sm:top-auto sm:bottom-24 sm:w-96 sm:max-w-[calc(100vw-48px)] sm:h-[520px]"
           >
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-[#0066FF] to-[#00D4AA]">
