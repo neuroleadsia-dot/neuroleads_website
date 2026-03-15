@@ -64,9 +64,18 @@ export function ChatbotWidget() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  // Track mobile breakpoint so we can apply dvh-based height (fixes iOS keyboard overlap)
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 640
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -77,28 +86,6 @@ export function ChatbotWidget() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // On iOS, the keyboard pushes fixed elements under it. Use visualViewport API
-  // to detect keyboard height and slide the chat window above it.
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const handleResize = () => {
-      const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-      setKeyboardOffset(offset);
-      if (offset > 0) {
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-      }
-    };
-
-    viewport.addEventListener('resize', handleResize);
-    viewport.addEventListener('scroll', handleResize);
-    return () => {
-      viewport.removeEventListener('resize', handleResize);
-      viewport.removeEventListener('scroll', handleResize);
-    };
-  }, []);
 
   const sendMessage = async (text?: string) => {
     const messageText = text || inputValue.trim();
@@ -193,8 +180,15 @@ export function ChatbotWidget() {
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             className="fixed z-50 bg-[#12121A] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col
                        left-3 right-3 top-4 bottom-[88px]
-                       sm:left-auto sm:right-6 sm:top-auto sm:bottom-24 sm:w-96 sm:max-w-[calc(100vw-48px)] sm:h-[520px]"
-            style={keyboardOffset > 0 ? { bottom: `${keyboardOffset + 8}px` } : undefined}
+                       sm:left-auto sm:right-6 sm:top-auto sm:bottom-24 sm:w-96 sm:max-w-[calc(100vw-48px)]"
+            style={{
+              // On mobile: use dvh (dynamic viewport height) so the window automatically
+              // shrinks when the iOS virtual keyboard opens, keeping the input visible.
+              // On desktop: fixed 520px capped to viewport height.
+              height: isMobile
+                ? 'calc(100dvh - 104px)'
+                : 'min(520px, calc(100vh - 120px))',
+            }}
           >
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-[#0066FF] to-[#00D4AA]">
