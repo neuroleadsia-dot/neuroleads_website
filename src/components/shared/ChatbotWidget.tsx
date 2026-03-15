@@ -236,7 +236,7 @@ export function ChatbotWidget() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
               {/* Welcome message */}
               <div className="flex justify-start">
                 <div className="max-w-[80%] p-3 rounded-2xl text-sm bg-[#1A1A25] text-[#B8B8C8] rounded-bl-md">
